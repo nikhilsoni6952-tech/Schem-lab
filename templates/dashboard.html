@@ -1,0 +1,294 @@
+{% extends 'base.html' %}{% load static %}
+{% block title %}Dashboard{% endblock %}{% block page %}dashboard{% endblock %}{% block mood %}{{ mood }}{% endblock %}
+{% block content %}
+<div class="bench">
+  <section class="panel lead" data-swap="lead">
+    <div>
+      <h1>{% if not s.total %}Your shelves are empty{% elif s.expired %}{{ s.expired|length }} chemical{{ s.expired|length|pluralize }} past expiry{% elif s.conflicts %}{{ s.conflicts|length }} storage conflict{{ s.conflicts|length|pluralize }} to fix{% elif s.soon %}{{ s.soon|length }} expiring this month{% elif s.low %}{{ s.low|length }} running low{% else %}Everything is in date and in stock{% endif %}</h1>
+      <p class="sub">{% if not s.total %}Add your first chemical, or load a sample inventory to see how the lab works.{% else %}{{ s.total }} chemical{{ s.total|pluralize }} across {{ s.locations }} location{{ s.locations|pluralize }} from {{ s.manufacturers }} manufacturer{{ s.manufacturers|pluralize }}.{% if s.expired or s.soon or s.low or s.conflicts %} The items that need you are listed below.{% endif %}{% endif %}</p>
+    </div>
+    <div class="actions">
+      {% if can_edit %}<a class="btn primary" href="{% url 'add_chemical' %}">Add chemical</a>{% endif %}
+      {% if s.total %}<a class="btn" href="{% url 'inventory' %}">Open inventory</a>
+      <a class="btn" href="{% url 'reactor' %}">Run a reaction</a>{% else %}
+      <form method="post" action="{% url 'load_sample' %}" class="needs-edit">{% csrf_token %}<button class="btn">Load sample inventory</button></form>{% endif %}
+    </div>
+  </section>
+  <section class="explorer" id="explorer" aria-label="Molecule explorer">
+    <div class="viewer ex-stage" id="hero3d" tabindex="0" aria-label="3D model of the molecule described alongside. Drag or use the arrow keys to rotate; click a part to read about it.">
+      <div class="ex-marks" id="exMarks" aria-hidden="true"></div>
+      <span class="ex-phase" id="exPhase" aria-hidden="true"></span>
+      <div class="ex-tools">
+        <button class="ex-tool" type="button" id="exCloud" aria-pressed="false" title="Show where the electrons gather">Charges</button>
+        <label class="ex-heat" id="exHeatWrap"><span>Heat</span><input type="range" id="exHeat" min="0" max="100" value="0" aria-describedby="exTemp"></label>
+      </div>
+      <div class="ex-temp" id="exTemp" aria-live="polite"></div>
+      <div class="ex-readout" id="exReadout" role="status" hidden></div>
+      <p class="ex-hint" id="exHint">Drag a part to pull it off · drag empty space to turn</p>
+    </div>
+    <div class="ex-text">
+      <div class="ex-head">
+        <div class="ex-kind"><span id="heroKind">On your shelf</span><span class="ex-count" id="exCount"></span></div>
+        <h2 id="heroName">Water</h2>
+        <div class="ex-sub"><span class="formula" id="heroFormula">H₂O</span><span class="hero-haz" id="heroHaz"></span></div>
+      </div>
+      <p class="ex-summary" id="exSummary"></p>
+      <ol class="ex-steps" id="exSteps" aria-label="Parts of this molecule"></ol>
+      <p class="ex-facts" id="exFacts" hidden></p>
+      <div class="ex-ctl">
+        <button class="btn small ghost" type="button" id="heroPrev" aria-label="Previous molecule">‹</button>
+        <button class="btn small" type="button" id="exApart" aria-pressed="false">Take apart</button>
+        <button class="btn small ghost" type="button" id="exPlay" aria-pressed="true">Pause</button>
+        <button class="btn small primary ex-next" type="button" id="heroNext">Next molecule ›</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<section class="command">
+  <form class="quick needs-edit" method="post" action="{% url 'quick_add' %}" id="quickForm" data-api="{% url 'quick_parse_api' %}" data-soft>{% csrf_token %}
+    <label class="sr" for="quickInput">Quick add a chemical</label>
+    <input id="quickInput" name="q" type="text" autocomplete="off" spellcheck="false" placeholder="Quick add: {{ quick_example }}" aria-describedby="quickPreview" required>
+    <button class="btn primary" type="submit">Add</button>
+    <p class="quick-preview" id="quickPreview" aria-live="polite">Formula or name, amount with unit, then the shelf. <span class="muted">Add exp YYYY-MM for the expiry.</span></p>
+  </form>
+  <button class="btn search-open" type="button" data-open-search><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m13 13 4.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Find a chemical <kbd>/</kbd></button>
+</section>
+
+<div class="stats">
+  {% url 'inventory' as inv %}
+  {% include '_stat_bottle.html' with key='total' href=inv n=s.total label='Chemicals' tone='' fill=stat_fill.total %}
+  {% with href=inv|add:'?status=expired' %}{% include '_stat_bottle.html' with key='expired' n=s.expired|length label='Expired' tone='t-red' fill=stat_fill.expired %}{% endwith %}
+  {% with href=inv|add:'?status=soon' %}{% include '_stat_bottle.html' with key='soon' n=s.soon|length label='Expiring within 30 days' tone='t-amber' fill=stat_fill.soon %}{% endwith %}
+  {% with href=inv|add:'?status=low' %}{% include '_stat_bottle.html' with key='low' n=s.low|length label='Low stock' tone='t-mn' fill=stat_fill.low %}{% endwith %}
+  <div class="tube-card" data-stat="health" data-health="{{ s.health }}" style="--tone:{% if s.health >= 80 %}var(--leaf){% elif s.health >= 50 %}var(--amber){% else %}var(--litmus){% endif %}">
+    <div class="health-flask" id="healthFlask" aria-hidden="true"></div>
+    <div class="tube" aria-hidden="true"><i data-fill="{{ s.health }}"></i></div>
+    <div><div class="v"><span data-count="{{ s.health }}">{{ s.health }}</span>%</div><div class="k">of stock is in date and above reorder level</div></div>
+  </div>
+</div>
+
+{% if s.total %}
+<section class="panel brief" id="briefing" data-api="{% url 'briefing_api' %}" aria-busy="true">
+  <div class="panel-head"><h2>Today’s briefing</h2><div class="brief-meta"><span id="briefEngine" class="muted"></span><button class="btn small ghost" type="button" id="briefRefresh">Refresh</button></div></div>
+  <div class="brief-body" id="briefBody"><span class="typing" aria-label="Writing the briefing"><i></i><i></i><i></i></span></div>
+</section>
+{% endif %}
+
+<section class="panel play" id="play" data-quiz="{% url 'quiz_api' %}" data-relocate="{% url 'relocate_api' %}" data-react="{% url 'reactor_api' %}">
+  <div class="panel-head play-head">
+    <h2>Lab playground</h2>
+    <div class="tabs" role="tablist" aria-label="Playground">
+      <button role="tab" id="tab-build" aria-controls="pane-build" aria-selected="true">Build</button>
+      <button role="tab" id="tab-mix" aria-controls="pane-mix" aria-selected="false" tabindex="-1">Mix</button>
+      <button role="tab" id="tab-quiz" aria-controls="pane-quiz" aria-selected="false" tabindex="-1">Daily quiz</button>
+      <button role="tab" id="tab-puzzle" aria-controls="pane-puzzle" aria-selected="false" tabindex="-1">Shelf puzzle</button>
+      <button role="tab" id="tab-sizes" aria-controls="pane-sizes" aria-selected="false" tabindex="-1">Sizes</button>
+    </div>
+  </div>
+
+  <div class="pane" role="tabpanel" id="pane-build" aria-labelledby="tab-build">
+    <div class="viewer play-stage" id="buildStage" tabindex="0" aria-label="Molecule you are building. Click an atom to build from it, click a bond to make it double or triple."></div>
+    <div class="play-side">
+      <p class="play-intro">Pick an element to bond it on. Click an atom to build from it; click a bond to make it double or triple. Glowing dots are free bonds.</p>
+      <div class="tray" role="group" aria-label="Elements">{% for e, n, v in build_tray %}<button type="button" class="tray-atom" data-el="{{ e }}" style="--tone:{{ n }}"><b>{{ e }}</b><small>{{ v }} bond{{ v|pluralize }}</small></button>{% endfor %}</div>
+      <div class="actions"><button class="btn small" type="button" id="buildFill">Fill with H</button><button class="btn small ghost" type="button" id="buildUndo">Undo</button><button class="btn small ghost" type="button" id="buildClear">Clear</button></div>
+      <div class="build-status" id="buildStatus" aria-live="polite"></div>
+      <div class="discover"><div class="discover-head"><b>Discovered</b><span id="buildCount"></span></div><ul id="buildFound"></ul></div>
+    </div>
+  </div>
+
+  <div class="pane" role="tabpanel" id="pane-mix" aria-labelledby="tab-mix" hidden>
+    <div class="mix-shelf"><p class="play-intro">{% if play.mix_from_shelf %}Bottles from your own shelf.{% else %}Your shelf has too few reactor chemicals, so these are the reactor’s reagents.{% endif %} Pick two, then pour.</p>
+      <div class="mix-bottles" id="mixBottles"></div>
+      <div class="actions"><button class="btn primary small" type="button" id="mixGo" disabled>Pour together</button><button class="btn small ghost" type="button" id="mixEmpty">Empty beaker</button></div>
+    </div>
+    <div class="viewer play-stage" id="mixStage" aria-label="3D beaker"><div class="mix-flash" id="mixFlash"></div></div>
+    <div class="mix-result" id="mixResult" aria-live="polite"><p class="muted">The reaction, its balanced equation and how careful to be appear here.</p></div>
+  </div>
+
+  <div class="pane" role="tabpanel" id="pane-quiz" aria-labelledby="tab-quiz" hidden>
+    <div class="quiz" id="quiz"><p class="muted">Loading today’s questions…</p></div>
+  </div>
+
+  <div class="pane" role="tabpanel" id="pane-puzzle" aria-labelledby="tab-puzzle" hidden>
+    <div class="puzzle-head"><p class="play-intro">Drag bottles, or click one and then a spot, until no incompatible chemicals share a spot. Nothing changes in your inventory until you apply the moves.</p>
+      <div class="puzzle-score" id="puzzleScore" aria-live="polite"></div></div>
+    <div class="puzzle" id="puzzle"></div>
+    <div class="actions"><button class="btn small" type="button" id="puzzleNew">Add a new spot</button><button class="btn small ghost" type="button" id="puzzleReset">Reset</button><button class="btn primary small" type="button" id="puzzleApply" disabled>Apply moves to my inventory</button></div>
+  </div>
+
+  <div class="pane" role="tabpanel" id="pane-sizes" aria-labelledby="tab-sizes" hidden>
+    <div class="viewer play-stage wide" id="sizesStage" tabindex="0" aria-label="Molecules from your shelf side by side, smallest molar mass first. Drag or use the arrow keys to slide along."></div>
+    <p class="fine">Lengths are to scale: bond lengths come from covalent radii, in ångström. The balls are drawn smaller than real atoms so the bonds stay visible. Crystals and metals are left out because they have no single-molecule size.</p>
+  </div>
+</section>
+{{ play|json_script:"playData" }}
+
+<div class="cols" data-swap="cols">
+  <div class="stack">
+    <section class="panel">
+      <div class="panel-head"><h2>Needs attention</h2>{% if attention %}<a href="{% url 'inventory' %}">All chemicals</a>{% endif %}</div>
+      {% if attention %}
+      <ul class="rows att">
+        {% for c, why in attention %}
+        <li class="flip" data-pk="{{ c.pk }}">
+          <div class="flip-inner">
+            <div class="face front">
+              <div class="who"><a href="{{ c.get_absolute_url }}">{{ c.name }}</a><small><span class="formula">{{ c.pretty_formula }}</span>, {{ c.quantity }}{% if c.location %}, {{ c.location }}{% endif %}</small></div>
+              <div class="att-side">
+                {% if why == 'low' %}<span class="badge low">Low stock</span>{% else %}<span class="badge {{ c.status }}{% if c.days_left >= 0 and c.days_left <= 7 %} urgent{% endif %}">{{ c.status_label }}</span>{% if c.low_stock %} <span class="badge low">Low stock</span>{% endif %}{% endif %}
+                <button class="btn small ghost" type="button" aria-expanded="false" aria-controls="qa{{ c.pk }}" data-flip>Update</button>
+                {% if why == 'expired' %}<form class="needs-edit" method="post" action="{% url 'dispose_chemical' c.pk %}" data-soft data-pk="{{ c.pk }}" data-confirm="Mark {{ c.name }} as disposed? It is removed from the inventory, and you can undo this from the activity log.">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}"><button class="btn small danger">Dispose</button></form>{% endif %}
+              </div>
+            </div>
+            <form class="face back qa needs-edit" id="qa{{ c.pk }}" method="post" action="{% url 'adjust_stock' c.pk %}" data-soft data-pk="{{ c.pk }}" inert>{% csrf_token %}
+              <input type="hidden" name="next" value="{{ request.path }}">
+              <label class="qa-name" for="qaAmt{{ c.pk }}" title="{{ c.name }}">{{ c.name }}</label>
+              <input id="qaAmt{{ c.pk }}" type="number" name="amount" min="0" step="any" required placeholder="Amount"><span class="unit">{{ c.unit }}</span>
+              <button class="btn small" name="action" value="used">Record use</button>
+              <button class="btn small" name="action" value="restocked">Restock</button>
+              <button class="btn small ghost" type="button" data-flip>Cancel</button>
+            </form>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% if attention_more %}<p class="muted" style="margin-top:10px">and {{ attention_more }} more in the inventory.</p>{% endif %}
+      {% else %}<p class="empty">{% if s.total %}Nothing has expired, nothing expires this month and nothing is below its reorder level.{% else %}Alerts for expiry and low stock appear here once you add chemicals.{% endif %}</p>{% endif %}
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>Reorder list</h2>{% if reorder %}<div class="links"><a href="{% url 'reorder_csv' %}">CSV</a><a href="{% url 'reorder' %}" target="_blank" rel="noopener">Print</a></div>{% endif %}</div>
+      {% if reorder %}
+      <ul class="rows">
+        {% for r in reorder %}
+        <li data-pk="{{ r.c.pk }}">
+          <div class="who"><a href="{{ r.c.get_absolute_url }}">{{ r.c.name }}</a><small>{{ r.reason }}. {{ r.c.quantity }} left{% if r.c.location %}, {{ r.c.location }}{% endif %}</small></div>
+          <div class="order" title="Suggested from {{ r.basis }}"><b>{{ r.suggest }} {{ r.c.unit }}</b><small>to order</small></div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}<p class="empty">{% if s.total %}Nothing to order. Chemicals land here when they drop to their reorder level or are forecast to run out within three weeks.{% else %}Low and fast-running stock is collected here as a shopping list.{% endif %}</p>{% endif %}
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>Disposal queue</h2>{% if disposal %}<span class="muted">{{ disposal|length }} expired</span>{% endif %}</div>
+      {% if disposal %}
+      <ul class="rows disp">
+        {% for d in disposal %}
+        <li>
+          <div class="who">
+            <div class="disp-name">{% include '_hazard.html' with h=d.c.hazard %}<a href="{{ d.c.get_absolute_url }}">{{ d.c.name }}</a></div>
+            <small>{{ d.c.status_label }}, {{ d.c.quantity }}{% if d.c.location %}, {{ d.c.location }}{% endif %}</small>
+            <p class="how">{{ d.how }}</p>
+          </div>
+          <form class="needs-edit" method="post" action="{% url 'dispose_chemical' d.c.pk %}" data-soft data-pk="{{ d.c.pk }}" data-confirm="Mark {{ d.c.name }} as disposed? It is removed from the inventory, and you can undo this from the activity log.">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}"><button class="btn small">Mark disposed</button></form>
+        </li>
+        {% endfor %}
+      </ul>
+      <p class="fine">Always follow the safety data sheet and your institution’s waste procedure.</p>
+      {% else %}<p class="empty">{% if s.total %}Nothing has expired. Expired chemicals are queued here with how to dispose of them.{% else %}Expired chemicals are queued here with how to dispose of them.{% endif %}</p>{% endif %}
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>Recent activity</h2><div class="links">{% if undo %}<form method="post" action="{% url 'undo_activity' undo.pk %}" data-soft class="needs-edit">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}"><button class="linkish" title="Undo: {{ undo.get_action_display|lower }} {{ undo.chemical_name }}">Undo last</button></form>{% endif %}<a href="{% url 'activity' %}">Full log</a></div></div>
+      {% if recent %}
+      <ul class="log">{% for a in recent %}{% include '_activity_row.html' %}{% endfor %}</ul>
+      {% else %}<p class="empty">Every add, edit, use and restock is logged here.</p>{% endif %}
+    </section>
+  </div>
+
+  <div class="stack">
+    <section class="panel">
+      <div class="panel-head"><h2>Expiry timeline</h2><span class="muted">next 90 days</span></div>
+      {% if timeline.dots or timeline.expired %}
+      <div class="tl" style="--lanes:{{ timeline.lanes }}">
+        {% if timeline.expired %}<a class="tl-expired beat" href="{% url 'inventory' %}?status=expired"><b>{{ timeline.expired }}</b> expired</a>{% endif %}
+        <div class="tl-plot">
+          <div class="tl-band" style="width:{% widthratio 30 90 100 %}%" aria-hidden="true"></div>
+          {% for t in timeline.ticks %}<span class="tl-tick" style="left:{{ t.pct }}%"><i></i><b>{{ t.label }}</b><small>{{ t.date|date:'j M' }}</small></span>{% endfor %}
+          {% for d in timeline.dots %}<a class="tl-dot {{ d.c.status }}{% if d.c.days_left <= 7 %} urgent{% endif %}" href="{{ d.c.get_absolute_url }}" style="left:{{ d.pct }}%;--lane:{{ d.lane }};--i:{{ forloop.counter0 }}" aria-label="{{ d.c.name }}: {{ d.c.status_label }}, {{ d.c.expiry_date|date:'j M Y' }}"><span class="tip" role="tooltip"><b>{{ d.c.name }}</b>{{ d.c.status_label }} · {{ d.c.expiry_date|date:'j M Y' }}</span></a>{% endfor %}
+        </div>
+      </div>
+      <div class="tl-key"><span class="key"><i class="dot soon"></i>Expires within 30 days</span><span class="key"><i class="dot watch"></i>31 to 90 days</span><span>Hover a dot for the chemical</span></div>
+      {% if timeline.dots %}<details class="tl-list"><summary>List view</summary>
+        <table><thead><tr><th>Chemical</th><th>Expires</th><th>Days left</th></tr></thead><tbody>
+        {% for d in timeline.dots %}<tr><td><a href="{{ d.c.get_absolute_url }}">{{ d.c.name }}</a></td><td>{{ d.c.expiry_date|date:'j M Y' }}</td><td class="num">{{ d.c.days_left }}</td></tr>{% endfor %}
+        </tbody></table></details>{% endif %}
+      {% else %}<p class="empty">{% if s.total %}Nothing expires in the next 90 days.{% else %}Upcoming expiry dates are plotted here.{% endif %}</p>{% endif %}
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>Usage trends</h2><span class="muted">last {{ trend_weeks }} weeks</span></div>
+      {% if trends %}
+      <ul class="trend">
+        {% for t in trends %}
+        <li data-pk="{{ t.c.pk }}">
+          <div class="who"><a href="{{ t.c.get_absolute_url }}">{{ t.c.name }}</a><small>{{ t.total }} {{ t.c.unit }} used, {{ t.events }} time{{ t.events|pluralize }}</small></div>
+          <svg class="spark" viewBox="0 0 {{ spark_width }} 32" role="img" aria-label="Weekly use of {{ t.c.name }} over {{ trend_weeks }} weeks">
+            {% for b in t.bars %}<g><rect class="hit" x="{{ b.x }}" y="0" width="10" height="32"/>{% if b.d %}<path class="bar" d="{{ b.d }}" style="--i:{{ forloop.counter0 }}"/>{% endif %}<title>{% if b.ago == 0 %}This week{% elif b.ago == 1 %}Last week{% else %}{{ b.ago }} weeks ago{% endif %}: {{ b.amount }} {{ t.c.unit }}</title></g>{% endfor %}
+          </svg>
+          <div class="runout{% if t.runout is not None and t.runout <= 21 %} warn{% endif %}">{% if t.runout is None %}<span class="muted">no forecast</span>{% elif t.runout == 0 %}<b>Out now</b>{% else %}<b>~{{ t.runout }} d</b><small>left</small>{% endif %}</div>
+        </li>
+        {% endfor %}
+      </ul>
+      <p class="fine">Days left is the current amount divided by the average daily use over the window.</p>
+      {% else %}<p class="empty">Record use on a chemical’s page or with Update above. Its weekly use and a run-out forecast appear here.</p>{% endif %}
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>Hazard summary</h2></div>
+      {% if hazards.rows %}
+      <div class="bars haz-bars">{% for h in hazards.rows %}<div class="bar-row"><span>{% include '_hazard.html' with h=h.key label=h.label %}</span><span class="track"><i data-fill="{{ h.pct }}"></i></span><span>{{ h.n }}</span></div>{% endfor %}</div>
+      <p class="haz-foot">{% if hazards.has_flammable_liquid %}<b>{{ hazards.flammable_litres }} L</b> of flammable liquid in {{ hazards.flammable_places }} location{{ hazards.flammable_places|pluralize }}.{% else %}No flammable liquids on the shelves.{% endif %}{% if hazards.none %} {{ hazards.none }} chemical{{ hazards.none|pluralize }} with no major hazard.{% endif %}</p>
+      {% else %}<p class="empty">{% if s.total %}No chemical on the shelves is marked with a major hazard.{% else %}Counts by hazard class appear here.{% endif %}</p>{% endif %}
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>Storage check</h2></div>
+      {% for x in s.conflicts %}
+      <div class="conflict">
+        <div class="conflict-text"><b>{{ x.location }}</b>: <a href="{{ x.a.get_absolute_url }}">{{ x.a.name }}</a> with <a href="{{ x.b.get_absolute_url }}">{{ x.b.name }}</a><p>{{ x.why }} Move one of them.</p></div>
+        <div class="clash-view" data-clash="{{ forloop.counter0 }}" aria-hidden="true"></div>
+        <button class="btn small ghost clash-play" type="button" data-clash="{{ forloop.counter0 }}">Show what happens</button>
+      </div>
+      {% empty %}<p class="empty">{% if s.total %}No incompatible chemicals share a location. Chemicals without a location are not checked.{% else %}Acids stored with bases, or oxidisers with flammables, are flagged here.{% endif %}</p>{% endfor %}
+    </section>
+    {% if categories %}
+    <section class="panel">
+      <div class="panel-head"><h2>What is on the shelves</h2></div>
+      <div class="bars">{% for name, n, pct in categories %}<div class="bar-row"><span>{{ name }}</span><span class="track"><i data-fill="{{ pct }}"></i></span><span>{{ n }}</span></div>{% endfor %}</div>
+    </section>
+    {% endif %}
+  </div>
+</div>
+
+{% if map.cells or map.unplaced %}
+<section class="panel smap" data-swap="smap">
+  <div class="panel-head"><h2>Storage map</h2><div class="smap-meta"><div class="seg" role="group" aria-label="Map view" hidden><button type="button" data-view="3d" aria-pressed="true">3D</button><button type="button" data-view="grid" aria-pressed="false">Grid</button></div><span class="muted">{{ map.cells }} location{{ map.cells|pluralize }}{% if map.bad %}, <span class="smap-bad">{{ map.bad }} with a conflict</span>{% endif %}</span></div></div>
+  <div class="viewer shelves3d" id="shelves3d" tabindex="0" hidden aria-label="3D storage cabinets. Drag or use the arrow keys to look around. Each bottle opens its chemical. The grid view lists the same information."><div class="bottle-tip" id="bottleTip" hidden></div></div>
+  <div class="smap-grid">
+  {% for row in map.rows %}
+  <div class="smap-row">
+    <h3>{{ row.name }}</h3>
+    <div class="smap-cells">
+      {% for cell in row.cells %}
+      <div class="cell{% if cell.conflicts %} bad{% endif %}">
+        <div class="cell-head"><b>{{ cell.label }}</b>{% if cell.conflicts %}<span class="cell-warn">Conflict</span>{% endif %}</div>
+        <ul>{% for it in cell.items %}<li{% if it.clash %} class="clash"{% endif %}><a href="{{ it.c.get_absolute_url }}" title="{{ it.c.name }}, {{ it.c.get_hazard_display|lower }}">{% include '_hazard.html' with h=it.c.hazard %}<span class="formula">{{ it.c.pretty_formula }}</span></a></li>{% endfor %}</ul>
+        {% if cell.conflicts %}<p class="cell-why">{{ cell.conflicts|join:'; ' }}</p>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+  </div>
+  {% if map.unplaced %}<p class="fine">No location recorded, so not checked: {% for c in map.unplaced %}<a href="{% url 'edit_chemical' c.pk %}">{{ c.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
+</section>
+{% endif %}
+{{ featured|json_script:"featured" }}
+{{ shelves|json_script:"shelvesData" }}
+{{ conflict_pairs|json_script:"clashData" }}
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/explain.js' %}"></script><script src="{% static 'js/bench.js' %}"></script><script src="{% static 'js/playground.js' %}"></script>{% endblock %}

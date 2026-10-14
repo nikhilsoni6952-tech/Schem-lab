@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block title %}Labels{% endblock %}{% block page %}inventory{% endblock %}
+{% block content %}
+<header class="page-head no-print">
+  <div><p style="margin:0 0 8px"><a href="{% url 'inventory' %}">Inventory</a></p><h1>Bottle labels</h1>
+  <p>{{ rows|length }} label{{ rows|pluralize }}. Stick one on each bottle: scanning it with a phone camera opens the chemical, ready to record use.</p></div>
+  <div class="actions">
+    <div class="seg" role="group" aria-label="Label size">
+      <a class="{% if size == 'small' %}on{% endif %}" href="?size=small{% if ids %}&ids={{ ids }}{% endif %}" aria-current="{% if size == 'small' %}true{% else %}false{% endif %}">Small</a>
+      <a class="{% if size == 'large' %}on{% endif %}" href="?size=large{% if ids %}&ids={{ ids }}{% endif %}" aria-current="{% if size == 'large' %}true{% else %}false{% endif %}">Large</a>
+    </div>
+    <button class="btn primary" type="button" onclick="print()"><svg class="ico"><use href="#i-print"/></svg>Print</button>
+  </div>
+</header>
+{% if local %}<div class="conflict no-print" style="margin-bottom:18px"><div class="conflict-text"><b>These codes point to {{ request.get_host }}</b><p>A phone can't open that address. Print labels from the online app, or open this page using your computer's network address (for example 192.168.1.20:8000), so the codes work when scanned.</p></div></div>{% endif %}
+{% if rows %}
+<div class="labels {{ size }}">
+  {% for r in rows %}{% with c=r.c %}
+  <article class="label">
+    <div class="qr" role="img" aria-label="QR code for {{ c.name }}">{{ r.qr|safe }}</div>
+    <div class="label-body">
+      <b class="label-name">{{ c.name }}</b>
+      <span class="label-formula">{{ c.pretty_formula }}{% if c.cas_number %}<span> · CAS {{ c.cas_number }}</span>{% endif %}</span>
+      {% if c.hazard_list %}<span class="label-haz">{% for h, label in c.hazard_list %}{% include '_hazard.html' with h=h label='' %}{% endfor %}<small>{{ c.hazards_display }}</small></span>{% endif %}
+      <span class="label-meta">{% if c.location %}{{ c.location }} · {% endif %}Exp {{ c.expiry_date|date:"M Y" }}{% if size == 'large' %} · {{ c.buy_from }}{% endif %}</span>
+    </div>
+  </article>
+  {% endwith %}{% endfor %}
+</div>
+{% else %}<section class="panel"><p class="empty">No chemicals to label yet.</p></section>{% endif %}
+{% endblock %}

@@ -1,0 +1,10 @@
+<a class="stat bottle-stat {{ tone }}" href="{{ href }}" data-stat="{{ key }}" data-fill-to="{{ fill }}" style="--fill:0">
+  <svg class="bottle-svg" viewBox="0 0 40 64" aria-hidden="true">
+    <defs><clipPath id="bclip-{{ key }}"><path d="M15.5 3h9v10c0 2.300 10 4.200 10 10v33a4 4 0 0 1-4 4H9.500a4 4 0 0 1-4-4V23c0-5.800 10-7.700 10-10z"/></clipPath></defs>
+    <g clip-path="url(#bclip-{{ key }})"><g class="liq"><path class="wave" d="M-40 0q5-2.600 10 0t10 0t10 0t10 0t10 0t10 0t10 0t10 0t10 0t10 0V70h-100z"/><path class="wave back" d="M-40 0q5 2.600 10 0t10 0t10 0t10 0t10 0t10 0t10 0t10 0t10 0t10 0V70h-100z"/></g></g>
+    <path class="glass" d="M15.500 3h9v10c0 2.300 10 4.200 10 10v33a4 4 0 0 1-4 4H9.500a4 4 0 0 1-4-4V23c0-5.800 10-7.700 10-10z"/>
+    <path class="cap" d="M14 1h12v4H14z"/>
+    <path class="shine" d="M9 26v24"/>
+  </svg>
+  <div><div class="v" data-count="{{ n }}">{{ n }}</div><div class="k">{{ label }}</div></div>
+</a>

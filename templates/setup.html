@@ -1,0 +1,15 @@
+{% extends 'auth_base.html' %}
+{% block title %}Set up{% endblock %}
+{% block content %}
+<p class="eyebrow">First-time setup</p>
+<h1>Create the admin account</h1>
+<p class="muted">You will manage the lab's team. Everyone else gets their account from you.</p>
+<form method="post" class="auth-form" novalidate>{% csrf_token %}
+  <div class="two">{% include '_field.html' with f=form.first_name %}{% include '_field.html' with f=form.last_name %}</div>
+  {% include '_field.html' with f=form.username %}
+  {% include '_field.html' with f=form.email %}
+  {% include '_field.html' with f=form.password %}
+  {% include '_field.html' with f=form.password2 %}
+  <button class="btn primary block" type="submit">Create account and open the lab</button>
+</form>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends 'base.html' %}{% load static %}
+{% block title %}Assistant{% endblock %}{% block page %}ai{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div><h1>Assistant</h1><p>Ask about your inventory, a chemical, a calculation or lab safety. It reads your live stock, so it knows what has expired and where things are.</p></div>
+</header>
+<div class="chat">
+  <section class="panel chat-main">
+    <div class="chat-top">
+      <div class="engine{% if ai.online %} online{% endif %}" id="engine"><i></i><div><b>{{ ai.label }}</b>{% if ai.online %} <span class="muted">connected, with your inventory as context</span>{% else %} <span class="muted">answers from your inventory and built-in chemistry</span>{% endif %}</div></div>
+      <button class="btn small ghost" id="newChat" type="button">New chat</button>
+    </div>
+    <div class="chat-log" id="log" aria-live="polite">
+      <div class="msg bot" data-md="Ask me something, or pick a question on the right.{% if empty %} Your inventory is empty, so stock questions will have nothing to report until you add chemicals.{% endif %}"></div>
+    </div>
+    <form class="chat-form" id="chatForm" data-api="{% url 'ai_api' %}" data-reset="{% url 'ai_reset' %}">
+      <label for="q" class="sr">Your question</label>
+      <textarea id="q" rows="1" placeholder="What has expired?" maxlength="2000" required></textarea>
+      <button class="btn primary" type="submit" id="send">Send</button>
+    </form>
+  </section>
+  <aside class="stack">
+    <section class="panel">
+      <h2>Try asking</h2>
+      <div class="suggest" id="suggest">
+        <button class="chip plain" type="button">What needs my attention today?</button>
+        <button class="chip plain" type="button">Any storage conflicts?</button>
+        <button class="chip plain" type="button">What is running low?</button>
+        <button class="chip plain" type="button">Molar mass of Ca(OH)2</button>
+        <button class="chip plain" type="button">Balance Al + HCl -> AlCl3 + H2</button>
+        <button class="chip plain" type="button">pH of 0.01 M HCl</button>
+        <button class="chip plain" type="button">What happens if I mix HCl and NaHCO3?</button>
+        <button class="chip plain" type="button">What do I do about an acid spill?</button>
+      </div>
+    </section>
+    {% if not ai.online %}
+    <section class="panel setup">
+      <h2 style="margin-bottom:8px">Connect a real AI model</h2>
+      <p>The offline engine handles stock, calculations and safety. For open-ended chemistry questions, add an API key:</p>
+      <ol><li>Copy <code>.env.example</code> to <code>.env</code></li><li>Add your key (Claude, Groq, Gemini, OpenAI or a local Ollama model)</li><li>Restart the server</li></ol>
+      {% if ai.hint %}<p style="color:var(--amber);margin-top:8px">{{ ai.hint }}</p>{% endif %}
+    </section>
+    {% endif %}
+  </aside>
+</div>
+{{ history|json_script:"chatHistory" }}
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/chat.js' %}"></script>{% endblock %}

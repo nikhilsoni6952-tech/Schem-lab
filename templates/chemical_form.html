@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block title %}{% if mode == 'add' %}Add chemical{% else %}Edit {{ c.name }}{% endif %}{% endblock %}{% block page %}inventory{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div><h1>{% if mode == 'add' %}Add chemical{% else %}Edit {{ c.name }}{% endif %}</h1>
+  <p>Type the formula first: known compounds fill in their name, category and hazard for you.</p></div>
+</header>
+<div class="detail">
+  <section>
+    <div class="viewer" id="formViewer" tabindex="0" aria-label="3D preview of the formula"><div class="viewer-cap"><div><span>Preview</span><b id="pvName">Type a formula</b><span id="pvMass"></span></div></div></div>
+    <p class="viewer-note" id="pvNote"></p>
+  </section>
+  <form method="post" class="panel" novalidate id="chemForm" enctype="multipart/form-data" data-lookup="{% url 'lookup_api' %}">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="out error" style="margin:0 0 16px">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="form-grid">
+      {% for f in form %}
+      {% if f.field.section %}<h2 class="form-sec w6">{{ f.field.section }} <span class="muted">(optional)</span></h2>{% endif %}
+      <div class="field {{ f.field.width }}{% if f.errors %} bad{% endif %}{% if f.name == 'remove_sds' %} check-field{% endif %}">
+        {% if f.name == 'remove_sds' %}<label>{{ f }} {{ f.label }}</label>{% else %}
+        <label for="{{ f.id_for_label }}">{{ f.label }}{% if not f.field.required and not f.field.quiet %} <span class="muted">(optional)</span>{% endif %}</label>
+        {{ f }}{% endif %}
+        {% if f.errors %}<ul class="err">{% for e in f.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% elif f.help_text %}<p class="help">{{ f.help_text }}</p>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <div class="actions">
+      <button class="btn primary" type="submit">{% if mode == 'add' %}Add chemical{% else %}Save changes{% endif %}</button>
+      <a class="btn ghost" href="{% if c %}{{ c.get_absolute_url }}{% else %}{% url 'inventory' %}{% endif %}">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

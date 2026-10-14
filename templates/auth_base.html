@@ -1,0 +1,28 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+{% include '_head.html' %}
+<title>{% block title %}Sign in{% endblock %} · S ChemLab</title>
+</head>
+<body class="auth-body">
+<main class="auth">
+  <section class="auth-brand" aria-hidden="true">
+    <div class="auth-mark"><svg class="logo" viewBox="0 0 48 48"><rect width="48" height="48" rx="11" class="logo-bg"/><path d="M19.5 9h9v2h-1.6v9.5l8.4 14.8a3 3 0 0 1-2.6 4.5H15.3a3 3 0 0 1-2.6-4.5L21.1 20.5V11h-1.6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M16.2 30.5h15.6l3.3 5.8a1.6 1.6 0 0 1-1.4 2.4H14.3a1.6 1.6 0 0 1-1.4-2.4z" class="logo-liq"/></svg><b>S ChemLab</b></div>
+    <div class="auth-pitch">
+      <h2>Your lab's chemicals, in one place.</h2>
+      <ul>
+        <li>Live inventory with expiry, low-stock and storage-conflict alerts</li>
+        <li>Activity log with undo, showing who changed what</li>
+        <li>3D reactor, periodic table, calculators and an assistant that knows your stock</li>
+      </ul>
+    </div>
+    <small>Works on laptops and phones. Install it from your browser for an app window.</small>
+  </section>
+  <section class="auth-card">
+    {% block content %}{% endblock %}
+  </section>
+</main>
+<script src="{% static 'js/fx.js' %}"></script><script src="{% static 'js/wild.js' %}"></script>
+<div class="toasts" role="status" aria-live="polite">{% for m in messages %}<div class="toast {{ m.tags }}">{{ m }}</div>{% endfor %}</div>
+</body>
+</html>

@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block title %}Activity log{% endblock %}{% block page %}dashboard{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div><h1>Activity log</h1><p>Every add, edit, use, restock, disposal and removal, newest first. The most recent change can be undone.</p></div>
+  <div class="actions">
+    {% if undo %}<form method="post" action="{% url 'undo_activity' undo.pk %}" class="needs-edit">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn">Undo: {{ undo.get_action_display|lower }} {{ undo.chemical_name|truncatechars:28 }}</button></form>{% endif %}
+    <a class="btn" href="{% url 'dashboard' %}">Back to dashboard</a>
+  </div>
+</header>
+
+<form method="get" class="filters log-filters" id="logFilters">
+  <div><label for="q">Chemical or detail</label><input type="search" id="q" name="q" value="{{ q }}" placeholder="ethanol, 0.5 L" autocomplete="off"></div>
+  <div><label for="action">Action</label><select id="action" name="action"><option value="">Every action</option>{% for v, l in actions %}<option value="{{ v }}"{% if v == action %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+  <div class="actions"><button class="btn" type="submit">Apply</button>{% if filtered %}<a class="btn ghost" href="{% url 'activity' %}">Clear</a>{% endif %}</div>
+</form>
+
+<p class="count-line">{% if filtered %}{{ page.paginator.count }} of {{ total }} entries match.{% else %}{{ total }} entr{{ total|pluralize:"y,ies" }}.{% endif %}</p>
+
+<section class="panel">
+  {% if page.object_list %}
+  <ul class="log log-full">{% for a in page.object_list %}{% include '_activity_row.html' %}{% endfor %}</ul>
+  {% else %}<p class="empty">{% if filtered %}No entries match. Try another action or clear the filters.{% else %}Nothing has been logged yet.{% endif %}</p>{% endif %}
+</section>
+
+{% if page.paginator.num_pages > 1 %}
+<nav class="pager" aria-label="Pages">
+  {% if page.has_previous %}<a class="btn small" href="?{% if q %}q={{ q|urlencode }}&{% endif %}{% if action %}action={{ action }}&{% endif %}page={{ page.previous_page_number }}">Newer</a>{% endif %}
+  <span class="muted">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}<a class="btn small" href="?{% if q %}q={{ q|urlencode }}&{% endif %}{% if action %}action={{ action }}&{% endif %}page={{ page.next_page_number }}">Older</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

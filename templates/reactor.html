@@ -1,0 +1,95 @@
+{% extends 'base.html' %}{% load static %}
+{% block title %}Reactor{% endblock %}{% block page %}reactor{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div><h1>Reactor</h1><p>Drag two reagents into the flask, or click them and press Run. Heat it, stir it, slow it down, and watch what the molecules do.</p></div>
+  <div class="rx-progress" id="rxProgress" aria-live="polite"></div>
+</header>
+<div class="reactor rx">
+  <div class="stack">
+    <section class="panel">
+      <div class="panel-head"><h2>Reagent shelf</h2><div class="ctl-row"><button class="btn small ghost" id="stockOnly" type="button" aria-pressed="false">In stock only</button><button class="btn small ghost" id="clearPick" type="button">Clear</button></div></div>
+      <p class="fine shelf-note">{{ in_stock }} of {{ reagents|length }} reagents are in your inventory <span class="stock-dot" aria-hidden="true"></span></p>
+      <div class="shelf" id="shelf">
+        {% for r in reagents %}
+        <button class="bottle" type="button" aria-pressed="false" data-formula="{{ r.formula }}" data-name="{{ r.name }}" data-form="{{ r.form }}" data-color="{{ r.color }}" data-pretty="{{ r.pretty }}"{% if r.stock %} data-stock="1" title="In stock: {% for c in r.stock %}{{ c.name }}, {{ c.amount }}{% if c.location %} ({{ c.location }}){% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}"{% else %} title="Not in your inventory"{% endif %}>
+          <span class="slot"></span>{% if r.stock %}<span class="stock-dot" aria-label="In stock"></span>{% endif %}
+          <svg viewBox="0 0 30 40" aria-hidden="true">{% if r.form == 'liquid' %}<path d="M11 2h8v3h-1v7l7 6v18a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V18l7-6V5h-1z" fill="none" stroke="#8da29d" stroke-width="1.3"/><path d="M6.3 22h17.400v13.500a1.2 1.2 0 0 1-1.2 1.200H7.500a1.2 1.2 0 0 1-1.2-1.200z" fill="{{ r.color }}" opacity=".85"/>{% else %}<path d="M8 3h14v4H8zM6 9h18v27a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2z" fill="none" stroke="#8da29d" stroke-width="1.3"/><path d="M7.3 24h15.400v11.500a1.2 1.2 0 0 1-1.2 1.200H8.500a1.2 1.2 0 0 1-1.2-1.200z" fill="{{ r.color }}" opacity=".8"/>{% endif %}</svg>
+          <span class="f">{{ r.pretty }}</span><span class="n">{{ r.name }}</span>
+        </button>
+        {% endfor %}
+      </div>
+    </section>
+    <section class="panel rx-book">
+      <div class="tabs" role="tablist" aria-label="Collections">
+        <button role="tab" id="tab-book" aria-controls="pane-book" aria-selected="true">Discoveries</button>
+        <button role="tab" id="tab-goals" aria-controls="pane-goals" aria-selected="false" tabindex="-1">Challenges</button>
+        <button role="tab" id="tab-notes" aria-controls="pane-notes" aria-selected="false" tabindex="-1">Notebook</button>
+      </div>
+      <div role="tabpanel" id="pane-book" aria-labelledby="tab-book"><div class="book-bar"><i id="bookBar"></i></div><p class="fine" id="bookCount"></p><div class="cards" id="cards"></div></div>
+      <div role="tabpanel" id="pane-goals" aria-labelledby="tab-goals" hidden><ul class="goals" id="goals"></ul></div>
+      <div role="tabpanel" id="pane-notes" aria-labelledby="tab-notes" hidden><div class="panel-head"><span class="muted">Your last runs</span><button class="btn small ghost" id="clearBook" type="button">Clear</button></div><ul class="notebook" id="book"><li class="muted">Reactions you run are noted here.</li></ul></div>
+    </section>
+  </div>
+
+  <section class="flask-col">
+    <div class="hood" id="hood" data-hazard="0">
+      <div class="hood-top"><span class="beacon" aria-hidden="true"></span><b>Fume hood</b><span class="hood-state" id="hoodState">Ready</span></div>
+      <div class="flask-stage" id="dropZone">
+        <div class="viewer" id="flask" aria-label="3D reaction flask on a Bunsen burner. Drag to turn it; drop reagents here."></div>
+        <div class="flash" id="flash"></div>
+        <div class="haze" id="haze" aria-hidden="true"></div>
+        <div class="goggles" id="goggles" aria-hidden="true"><svg viewBox="0 0 120 44"><path d="M8 16c0-6 6-10 14-10h76c8 0 14 4 14 10v8c0 9-7 14-16 14H80c-6 0-9-6-13-10-4-3-10-3-14 0-4 4-7 10-13 10H24C15 38 8 33 8 24z" fill="rgba(88,176,201,.18)" stroke="#d6dfd9" stroke-width="2.5"/><path d="M2 20h6M112 20h6" stroke="#d6dfd9" stroke-width="3"/></svg><span>Goggles on</span></div>
+        <div class="drop-hint" id="dropHint">Drop it in</div>
+        <button class="btn small splint" id="splint" type="button" hidden>Test the gas with a lit splint</button>
+      </div>
+      <div class="gauges" aria-label="Instruments">
+        <div class="gauge-box"><svg viewBox="0 0 40 120" class="thermo" aria-hidden="true"><rect x="15" y="6" width="10" height="92" rx="5" class="t-glass"/><rect x="17.5" y="10" width="5" height="86" rx="2.5" class="t-track"/><rect x="17.5" y="96" width="5" height="0" rx="2.5" class="t-merc" id="tMerc"/><circle cx="20" cy="104" r="10" class="t-bulb"/><g class="t-ticks"><line x1="26" x2="31" y1="14" y2="14"/><line x1="26" x2="29" y1="30" y2="30"/><line x1="26" x2="31" y1="46" y2="46"/><line x1="26" x2="29" y1="62" y2="62"/><line x1="26" x2="31" y1="78" y2="78"/><line x1="26" x2="29" y1="94" y2="94"/></g></svg><div><b id="tRead">20 °C</b><small>Temperature</small></div></div>
+        <div class="gauge-box wide"><div class="ph-scale ph-meter"><i id="phNeedle" style="left:50%"></i></div><div class="ph-ticks"><span>0</span><span>7</span><span>14</span></div><div><b id="phRead">pH –</b><small id="phNote">pH (approximate)</small></div></div>
+        <div class="gauge-box"><svg viewBox="0 0 40 120" class="syringe" aria-hidden="true"><rect x="10" y="10" width="20" height="96" rx="3" class="s-barrel"/><rect x="11.5" y="104" width="17" height="0" class="s-gas" id="sGas"/><rect x="8" y="104" width="24" height="4" class="s-plunger" id="sPlunger"/></svg><div><b id="gRead">0 mL</b><small id="gName">Gas collected</small></div></div>
+      </div>
+    </div>
+    <div class="picked" id="picked" aria-live="polite"><span class="ph">Choose two reagents to begin</span></div>
+    <div class="run-row">
+      <button class="btn primary" id="run" type="button" disabled>Run reaction</button>
+      <button class="btn" id="stir" type="button">Stir</button>
+      <button class="btn" id="resetFlask" type="button">Empty flask</button>
+    </div>
+    <div class="controls">
+      <label class="ctl"><span>Bunsen burner</span><input type="range" id="burner" min="0" max="100" value="0"><output id="burnerOut">Off</output></label>
+      <div class="ctl"><span>Amount</span><div class="seg" role="group" aria-label="Amount" id="amount"><button type="button" data-amt=".6" aria-pressed="false">Dash</button><button type="button" data-amt="1" aria-pressed="true">Normal</button><button type="button" data-amt="1.5" aria-pressed="false">Lots</button></div></div>
+      <div class="ctl"><span>Playback</span><div class="ctl-row"><button class="btn small" type="button" id="replay" disabled>Replay</button><button class="btn small" type="button" id="slowmo" aria-pressed="false">Slow motion</button><button class="btn small" type="button" id="saveCard" disabled>Save card</button></div></div>
+    </div>
+    <section class="panel zoom-panel">
+      <div class="panel-head"><h2>Molecules up close</h2><button class="btn small ghost" type="button" id="zoomPlay" disabled>Play again</button></div>
+      <div class="viewer zoom-stage" id="zoom" aria-label="The reaction acted out by individual molecules"></div>
+      <p class="fine" id="zoomNote">Run a reaction to watch its atoms swap partners. Every atom on the left ends up somewhere on the right.</p>
+    </section>
+  </section>
+
+  <div class="stack">
+    <section class="panel result" id="result" aria-live="polite">
+      <h2 id="rType">No reaction yet</h2>
+      <p class="muted" id="rNote">The equation, what you would observe and how careful you need to be will appear here.</p>
+      <div class="eq anim-eq" id="rEq" hidden></div>
+      <div class="tally" id="tally" hidden>
+        <svg viewBox="0 0 200 70" class="scale" aria-hidden="true"><path d="M100 64V20" class="post"/><path d="M80 64h40" class="post"/><g id="beam"><path d="M30 20h140" class="beam"/><path d="M30 20l-14 26h28zM170 20l-14 26h28z" class="pans"/></g><circle cx="100" cy="20" r="4" class="pivot"/></svg>
+        <table class="tally-table" id="tallyTable"></table>
+      </div>
+      <ul class="obs" id="rObs" hidden></ul>
+    </section>
+    <section class="panel energy">
+      <div class="panel-head"><h2>Energy</h2><span class="muted" id="eKind"></span></div>
+      <svg viewBox="0 0 300 150" class="energy-svg" id="energy" role="img" aria-label="Energy profile of the reaction">
+        <line x1="24" y1="10" x2="24" y2="136" class="axis"/><line x1="24" y1="136" x2="292" y2="136" class="axis"/>
+        <text x="8" y="80" class="axis-label" transform="rotate(-90 8 80)">Energy</text><text x="158" y="148" class="axis-label" text-anchor="middle">Reaction progress</text>
+        <path id="ePath" class="e-path" d="M30 80H290"/><circle id="eDot" r="5" cx="30" cy="80" class="e-dot"/>
+        <g id="eLabels"></g>
+      </svg>
+      <p class="fine" id="eNote">The hump is the activation energy: particles need at least this much to react. Heating gives more of them enough.</p>
+    </section>
+  </div>
+</div>
+{{ reactor|json_script:"reactorData" }}
+{% endblock %}
+{% block scripts %}<script>window.REACTOR_API = "{% url 'reactor_api' %}";</script><script src="{% static 'js/reactor.js' %}"></script>{% endblock %}

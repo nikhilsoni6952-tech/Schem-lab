@@ -1,0 +1,48 @@
+{% extends 'base.html' %}{% load static %}
+{% block title %}Calculators{% endblock %}{% block page %}tools{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div><h1>Calculators</h1><p>The sums you do at the bench. Formulas are case-sensitive: write <span class="formula">Co</span> for cobalt and <span class="formula">CO</span> for carbon monoxide.</p></div>
+</header>
+<div class="tools" data-api="{% url 'tools_api' %}">
+  <section class="panel tool">
+    <h2>Molar mass</h2>
+    <form data-tool="mass"><div class="field"><label for="mmF">Formula</label><input id="mmF" name="formula" class="formula-input" placeholder="Ca(OH)2 or CuSO4·5H2O" autocomplete="off" spellcheck="false" required></div>
+    <div><button class="btn primary">Calculate molar mass</button></div></form>
+    <div class="out" aria-live="polite"></div>
+  </section>
+  <section class="panel tool">
+    <h2>Balance an equation</h2>
+    <form data-tool="balance"><div class="field"><label for="beE">Unbalanced equation</label><input id="beE" name="equation" class="formula-input" placeholder="Fe + O2 -> Fe2O3" autocomplete="off" spellcheck="false" required></div>
+    <div><button class="btn primary">Balance equation</button></div></form>
+    <div class="out" aria-live="polite"></div>
+  </section>
+  <section class="panel tool">
+    <h2>Mass and moles</h2>
+    <form data-tool="moles"><div class="field"><label for="moF">Formula</label><input id="moF" name="formula" class="formula-input" placeholder="NaCl" autocomplete="off" spellcheck="false" required></div>
+    <div class="row"><div class="field"><label for="moG">Mass in grams</label><input id="moG" name="grams" type="number" step="any" min="0" placeholder="25"></div>
+    <div class="field"><label for="moN">Moles</label><input id="moN" name="moles" type="number" step="any" min="0" placeholder="leave blank"></div></div>
+    <p class="help muted" style="font-size:12.5px">Fill in one and leave the other blank.</p>
+    <div><button class="btn primary">Convert</button></div></form>
+    <div class="out" aria-live="polite"></div>
+  </section>
+  <section class="panel tool">
+    <h2>Dilution</h2>
+    <form data-tool="dilution"><p class="muted" style="font-size:13.5px"><span class="formula">C₁V₁ = C₂V₂</span>. Fill in three boxes and leave the one you want blank. Use the same units on both sides.</p>
+    <div class="row"><div class="field"><label for="dC1">Stock concentration C₁</label><input id="dC1" name="c1" type="number" step="any" min="0" placeholder="12"></div>
+    <div class="field"><label for="dV1">Stock volume V₁</label><input id="dV1" name="v1" type="number" step="any" min="0" placeholder="blank"></div></div>
+    <div class="row"><div class="field"><label for="dC2">Final concentration C₂</label><input id="dC2" name="c2" type="number" step="any" min="0" placeholder="1"></div>
+    <div class="field"><label for="dV2">Final volume V₂</label><input id="dV2" name="v2" type="number" step="any" min="0" placeholder="500"></div></div>
+    <div><button class="btn primary">Solve dilution</button></div></form>
+    <div class="out" aria-live="polite"></div>
+  </section>
+  <section class="panel tool">
+    <h2>pH of a solution</h2>
+    <form data-tool="ph"><div class="row"><div class="field"><label for="phS">Acid or base</label><select id="phS" name="species">{% for v, l in ph_species %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="phM">Concentration in mol/L</label><input id="phM" name="molarity" type="number" step="any" min="0" placeholder="0.01" required></div></div>
+    <div><button class="btn primary">Calculate pH</button></div></form>
+    <div class="out" aria-live="polite"></div>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/tools.js' %}"></script>{% endblock %}

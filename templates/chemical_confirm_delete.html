@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block title %}Remove {{ c.name }}{% endblock %}{% block page %}inventory{% endblock %}
+{% block content %}
+<section class="panel" style="max-width:560px">
+  <h1 style="font-size:28px">Remove {{ c.name }}?</h1>
+  <p class="muted" style="margin:12px 0 22px">This deletes <span class="formula">{{ c.pretty_formula }}</span> ({{ c.quantity }}{% if c.location %}, {{ c.location }}{% endif %}) from the inventory. The activity log keeps a record, but the chemical itself can’t be restored.{% if c.sheet %} Its uploaded safety data sheet is deleted too.{% endif %}</p>
+  <form method="post" class="actions">{% csrf_token %}
+    <button class="btn danger" type="submit">Remove chemical</button>
+    <a class="btn ghost" href="{{ c.get_absolute_url }}">Keep it</a>
+  </form>
+</section>
+{% endblock %}

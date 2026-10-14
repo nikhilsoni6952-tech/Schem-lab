@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% block title %}{{ c.name }}{% endblock %}{% block page %}inventory{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <p style="margin:0 0 8px"><a href="{% url 'inventory' %}">Inventory</a></p>
+    <h1>{{ c.name }}</h1>
+    <div class="title-formula">{{ c.pretty_formula }}{% if c.molar_mass %} <span class="muted" style="font-size:14px">{{ c.molar_mass }} g/mol</span>{% endif %}</div>
+  </div>
+  <div class="actions"><a class="btn" href="{% url 'labels' %}?ids={{ c.pk }}"><svg class="ico"><use href="#i-print"/></svg>Print label</a><span class="actions needs-edit"><a class="btn" href="{% url 'edit_chemical' c.pk %}">Edit</a><a class="btn ghost" href="{% url 'delete_chemical' c.pk %}">Remove</a></span></div>
+</header>
+
+<div class="detail">
+  <div class="stack">
+    <section>
+      <div class="viewer" id="detailViewer" data-formula="{{ formula }}" tabindex="0" aria-label="3D model of {{ c.name }}. Drag or use arrow keys to rotate."><div class="viewer-cap"><span>Drag to rotate</span></div></div>
+      <p class="viewer-note" id="detailNote"></p>
+    </section>
+    {% if comp %}
+    <section class="panel">
+      <h2>Composition by mass</h2>
+      {% for e in comp.elements %}<div class="bar-row comp-row"><b>{{ e.symbol }}{% if e.count > 1 %}<span class="muted"> ×{{ e.count }}</span>{% endif %}</b><span class="track"><i data-fill="{{ e.percent }}"></i></span><span>{{ e.percent }}%</span></div>{% endfor %}
+    </section>
+    {% endif %}
+  </div>
+  <div class="stack">
+    <section class="panel">
+      <div class="panel-head"><h2>Stock</h2><div><span class="badge {{ c.status }}">{{ c.status_label }}</span>{% if c.low_stock %} <span class="badge low">Low stock</span>{% endif %}</div></div>
+      <dl class="facts">
+        <div><dt>Amount</dt><dd>{{ c.quantity }}</dd></div>
+        <div><dt>Reorder below</dt><dd>{% if c.min_stock %}{{ c.min_stock.normalize }} {{ c.unit }}{% else %}Not set{% endif %}</dd></div>
+        <div><dt>Location</dt><dd>{{ c.location|default:"Not recorded" }}</dd></div>
+        <div><dt>Expiry</dt><dd>{{ c.expiry_date|date:"d M Y" }}</dd></div>
+        <div><dt>Manufacturer</dt><dd>{{ c.manufacturer }}</dd></div>
+        <div><dt>CAS number</dt><dd>{{ c.cas_number|default:"Not recorded" }}</dd></div>
+        <div><dt>Category</dt><dd>{{ c.get_category_display }}, {{ c.get_state_display|lower }}</dd></div>
+      </dl>
+      <form method="post" action="{% url 'adjust_stock' c.pk %}" class="adjust needs-edit{% if scanned %} scanned{% endif %}" id="use" style="margin-top:20px">{% csrf_token %}
+        {% if scanned %}<p class="scan-hint">Scanned from its label. How much did you use?</p>{% endif %}
+        <label for="adj" class="sr">Amount in {{ c.unit }}</label>
+        <input type="number" id="adj" name="amount" min="0" step="any" inputmode="decimal" placeholder="Amount in {{ c.unit }}" required{% if scanned %} autofocus{% endif %}>
+        <button class="btn" name="action" value="used">Record use</button>
+        <button class="btn" name="action" value="restocked">Restock</button>
+      </form>
+      {% if scanned %}<script>addEventListener("load", () => document.getElementById("adj").focus({ preventScroll: true }));</script>{% endif %}
+    </section>
+    <section class="panel">
+      <h2>Safety</h2>
+      <div class="haz-set">{% for h, label in c.hazard_list %}{% include '_hazard.html' with h=h label=label big=1 %}{% empty %}{% include '_hazard.html' with h='none' label=c.get_hazard_display big=1 %}{% endfor %}</div>
+      {% if known %}<p style="margin-top:14px">{{ known.facts }}</p>{% endif %}
+      <div class="sds-row">
+        {% if sheet %}<a class="btn" href="{% url 'safety_sheet' c.pk %}" target="_blank" rel="noopener"><svg class="ico"><use href="#i-file"/></svg>Safety data sheet</a><span class="muted">PDF, {{ sheet.size_label }}, added {{ sheet.uploaded_at|date:"j M Y" }}</span>
+        {% elif c.sds_url %}<a class="btn" href="{{ c.sds_url }}" target="_blank" rel="noopener noreferrer"><svg class="ico"><use href="#i-file"/></svg>Safety data sheet</a><span class="muted">on the supplier's site</span>
+        {% else %}<span class="muted">No safety data sheet yet.</span>{% if can_edit %} <a href="{% url 'edit_chemical' c.pk %}#id_sds_file">Add one</a>{% endif %}{% endif %}
+      </div>
+      {% for x in conflicts %}<div class="conflict" style="margin-top:14px"><div class="conflict-text"><b>Storage conflict in {{ x.location }}</b>: stored with {% if x.a.pk == c.pk %}<a href="{{ x.b.get_absolute_url }}">{{ x.b.name }}</a>{% else %}<a href="{{ x.a.get_absolute_url }}">{{ x.a.name }}</a>{% endif %}<p>{{ x.why }}</p></div></div>{% endfor %}
+      {% if c.notes %}<p class="muted" style="margin-top:14px;white-space:pre-line">{{ c.notes }}</p>{% endif %}
+    </section>
+    {% if c.supplier or c.catalog_number or c.pack_size or c.pack_price is not None or c.product_url %}
+    <section class="panel">
+      <div class="panel-head"><h2>Purchasing</h2>{% if c.product_url %}<a class="btn small" href="{{ c.product_url }}" target="_blank" rel="noopener noreferrer">Order page ↗</a>{% endif %}</div>
+      <dl class="facts">
+        <div><dt>Supplier</dt><dd>{{ c.buy_from }}</dd></div>
+        <div><dt>Catalogue no.</dt><dd class="mono">{{ c.catalog_number|default:"Not recorded" }}</dd></div>
+        <div><dt>Pack</dt><dd>{% if c.pack_size %}{{ c.pack_size.normalize }} {{ c.unit }}{% if c.pack_price is not None %} for {{ currency }}{{ c.pack_price|floatformat:"-2g" }}{% endif %}{% elif c.pack_price is not None %}{{ currency }}{{ c.pack_price|floatformat:"-2g" }}{% else %}Not recorded{% endif %}</dd></div>
+      </dl>
+    </section>
+    {% endif %}
+    {% if history %}
+    <section class="panel">
+      <h2>History</h2>
+      <ul class="log">{% for a in history %}<li class="a-{{ a.action }}"><span class="act">{{ a.get_action_display }}</span><span class="muted">{{ a.detail }}</span><time datetime="{{ a.created_at|date:'c' }}">{{ a.created_at|date:"d M, H:i" }}</time></li>{% endfor %}</ul>
+    </section>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

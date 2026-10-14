@@ -1,0 +1,117 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+{% include '_head.html' %}
+<title>{% block title %}Dashboard{% endblock %} · S ChemLab</title>
+<script type="speculationrules">{"prefetch":[{"where":{"and":[{"href_matches":"/*"},{"not":{"href_matches":"/admin/*"}},{"not":{"href_matches":"/delete/*"}},{"not":{"href_matches":"/logout/*"}},{"not":{"href_matches":"/*.csv"}}]},"eagerness":"moderate"}]}</script>
+</head>
+<body data-role="{{ role|default:'' }}">
+{% include '_icons.html' %}
+<a class="skip" href="#main">Skip to content</a>
+<div class="splash" aria-hidden="true">
+  <svg viewBox="0 0 48 48"><path class="s-liq" d="M16.5 30h15l4.3 7.700a2 2 0 0 1-1.8 3H14a2 2 0 0 1-1.8-3z"/>
+    <path class="s-glass" d="M19 5h10v2h-2v12l10.5 18.500A4 4 0 0 1 34 43.500H14a4 4 0 0 1-3.5-6L21 19V7h-2z"/>
+    <circle class="s-bub" cx="22" cy="35" r="1.3"/><circle class="s-bub" cx="27" cy="33" r=".9"/><circle class="s-bub" cx="24" cy="31" r=".7"/></svg>
+  <b>S ChemLab</b><small>Laboratory workspace</small>
+</div>
+<div class="offline-bar" id="offlineBar" role="status">You're offline. Showing the last saved copy.</div>
+<div id="backdrop" aria-hidden="true"></div>
+
+{% if user.is_authenticated %}
+<aside class="sidebar" aria-label="Main">
+  <div class="sb-head">
+    <a class="sb-brand" href="{% url 'dashboard' %}" aria-label="S ChemLab dashboard">
+      <svg class="logo" viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="11" class="logo-bg"/><path d="M19.5 9h9v2h-1.6v9.5l8.4 14.8a3 3 0 0 1-2.6 4.5H15.3a3 3 0 0 1-2.6-4.5L21.1 20.5V11h-1.6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M16.2 30.5h15.6l3.3 5.8a1.6 1.6 0 0 1-1.4 2.4H14.3a1.6 1.6 0 0 1-1.4-2.4z" class="logo-liq"/></svg>
+      <span class="sb-name"><b>S ChemLab</b><small>Laboratory</small></span>
+    </a>
+    <button class="icon-btn sb-toggle" type="button" id="sbToggle" aria-label="Collapse sidebar" title="Collapse sidebar"><svg><use href="#i-sidebar"/></svg></button>
+  </div>
+  <button class="sb-search" type="button" data-open-search><svg><use href="#i-search"/></svg><span>Search</span><kbd>/</kbd></button>
+  <nav class="sb-nav">
+    <p class="sb-label">Workspace</p>
+    <a class="nav-link" href="{% url 'dashboard' %}" data-key="1" {% if nav == 'dashboard' %}aria-current="page"{% endif %}><svg><use href="#i-home"/></svg><span>Dashboard</span></a>
+    <a class="nav-link" href="{% url 'inventory' %}" data-key="2" {% if nav == 'inventory' %}aria-current="page"{% endif %}><svg><use href="#i-box"/></svg><span>Inventory</span></a>
+    <a class="nav-link" href="{% url 'activity' %}" data-key="3" {% if nav == 'activity' %}aria-current="page"{% endif %}><svg><use href="#i-history"/></svg><span>Activity</span></a>
+    <a class="nav-link" href="{% url 'reorder' %}" data-key="4" {% if nav == 'reorder' %}aria-current="page"{% endif %}><svg><use href="#i-cart"/></svg><span>Reorder list</span></a>
+    <p class="sb-label">Lab tools</p>
+    <a class="nav-link" href="{% url 'reactor' %}" data-key="5" {% if nav == 'reactor' %}aria-current="page"{% endif %}><svg><use href="#i-flask"/></svg><span>Reactor</span></a>
+    <a class="nav-link" href="{% url 'elements' %}" data-key="6" {% if nav == 'elements' %}aria-current="page"{% endif %}><svg><use href="#i-atom"/></svg><span>Periodic table</span></a>
+    <a class="nav-link" href="{% url 'tools' %}" data-key="7" {% if nav == 'tools' %}aria-current="page"{% endif %}><svg><use href="#i-calc"/></svg><span>Calculators</span></a>
+    <a class="nav-link" href="{% url 'ai_assistant' %}" data-key="8" {% if nav == 'ai' %}aria-current="page"{% endif %}><svg><use href="#i-chat"/></svg><span>Assistant</span></a>
+  </nav>
+  <div class="sb-foot">
+    <button class="nav-link wild-toggle" type="button" data-wild-toggle aria-pressed="false" title="Wild mode: maximum effects"><svg><use href="#i-bolt"/></svg><span>Wild mode</span><i class="wt-switch" aria-hidden="true"></i></button>
+    <button class="nav-link install-btn" type="button" data-install><svg><use href="#i-download"/></svg><span>Install app</span></button>
+    {% if is_admin %}<a class="nav-link" href="/admin/" target="_blank" rel="noopener"><svg><use href="#i-lock"/></svg><span>Admin panel</span></a>{% endif %}
+    {% if is_admin %}<a class="nav-link" href="{% url 'team' %}" {% if nav == 'team' %}aria-current="page"{% endif %}><svg><use href="#i-users"/></svg><span>Team</span></a>{% endif %}
+    <a class="nav-link" href="{% url 'account' %}" {% if nav == 'settings' %}aria-current="page"{% endif %}><svg><use href="#i-settings"/></svg><span>Settings</span></a>
+    <div class="sb-user">
+      <a class="avatar" href="{% url 'account' %}" title="Your account">{{ me_initials }}</a>
+      <span class="sb-who"><b>{{ me_name }}</b><small>{{ role|capfirst }}</small></span>
+      <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="icon-btn" type="submit" aria-label="Sign out" title="Sign out"><svg><use href="#i-logout"/></svg></button></form>
+    </div>
+  </div>
+</aside>
+
+<header class="topbar">
+  <a class="tb-brand" href="{% url 'dashboard' %}" aria-label="Dashboard"><svg class="logo" viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="11" class="logo-bg"/><path d="M19.5 9h9v2h-1.6v9.5l8.4 14.8a3 3 0 0 1-2.6 4.5H15.3a3 3 0 0 1-2.6-4.5L21.1 20.5V11h-1.6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M16.2 30.5h15.6l3.3 5.8a1.6 1.6 0 0 1-1.4 2.4H14.3a1.6 1.6 0 0 1-1.4-2.4z" class="logo-liq"/></svg></a>
+  <b class="tb-title" id="tbTitle"></b>
+  <button class="icon-btn wild-toggle" type="button" data-wild-toggle aria-pressed="false" aria-label="Wild mode"><svg><use href="#i-bolt"/></svg></button>
+  <button class="icon-btn" type="button" data-open-search aria-label="Search"><svg><use href="#i-search"/></svg></button>
+  <a class="avatar" href="{% url 'account' %}" aria-label="Your account and settings">{{ me_initials }}</a>
+</header>
+
+<nav class="tabbar" aria-label="Main">
+  <a class="tab" href="{% url 'dashboard' %}" {% if nav == 'dashboard' %}aria-current="page"{% endif %}><svg><use href="#i-home"/></svg><span>Home</span></a>
+  <a class="tab" href="{% url 'inventory' %}" {% if nav == 'inventory' %}aria-current="page"{% endif %}><svg><use href="#i-box"/></svg><span>Inventory</span></a>
+  {% if can_edit %}<a class="tab tab-add" href="{% url 'add_chemical' %}" aria-label="Add chemical"><svg><use href="#i-plus"/></svg></a>{% endif %}
+  <a class="tab" href="{% url 'reactor' %}" {% if nav == 'reactor' %}aria-current="page"{% endif %}><svg><use href="#i-flask"/></svg><span>Reactor</span></a>
+  <button class="tab" type="button" id="moreOpen" aria-haspopup="dialog" {% if nav in 'activity reorder elements tools ai settings team' and nav %}aria-current="page"{% endif %}><svg><use href="#i-more"/></svg><span>More</span></button>
+</nav>
+
+<dialog class="sheet" id="moreSheet" aria-label="More">
+  <div class="sheet-grip" aria-hidden="true"></div>
+  <div class="sheet-user"><span class="avatar">{{ me_initials }}</span><span><b>{{ me_name }}</b><small>{{ role|capfirst }}</small></span></div>
+  <div class="sheet-grid">
+    <a href="{% url 'activity' %}"><svg><use href="#i-history"/></svg>Activity</a>
+    <a href="{% url 'reorder' %}"><svg><use href="#i-cart"/></svg>Reorder list</a>
+    <a href="{% url 'elements' %}"><svg><use href="#i-atom"/></svg>Periodic table</a>
+    <a href="{% url 'tools' %}"><svg><use href="#i-calc"/></svg>Calculators</a>
+    <a href="{% url 'ai_assistant' %}"><svg><use href="#i-chat"/></svg>Assistant</a>
+    <a href="{% url 'account' %}"><svg><use href="#i-settings"/></svg>Settings</a>
+    {% if is_admin %}<a href="{% url 'team' %}"><svg><use href="#i-users"/></svg>Team</a>{% endif %}
+    <button type="button" class="install-btn" data-install><svg><use href="#i-download"/></svg>Install app</button>
+  </div>
+  <form method="post" action="{% url 'logout' %}" class="sheet-out">{% csrf_token %}<button class="btn ghost" type="submit"><svg class="ico"><use href="#i-logout"/></svg>Sign out</button></form>
+</dialog>
+{% endif %}
+
+<main id="main" class="main reveal" data-page="{% block page %}{% endblock %}" data-mood="{% block mood %}calm{% endblock %}">
+{% block content %}{% endblock %}
+</main>
+
+{% if user.is_authenticated %}
+<dialog class="palette" id="palette" aria-label="Find a chemical or page" data-api="{% url 'search_api' %}"
+  data-pages='[["Dashboard","{% url 'dashboard' %}"],["Inventory","{% url 'inventory' %}"]{% if can_edit %},["Add chemical","{% url 'add_chemical' %}"]{% endif %},["Activity log","{% url 'activity' %}"],["Reorder list","{% url 'reorder' %}"],["Reactor","{% url 'reactor' %}"],["Periodic table","{% url 'elements' %}"],["Calculators","{% url 'tools' %}"],["Assistant","{% url 'ai_assistant' %}"],["Settings","{% url 'account' %}"]{% if is_admin %},["Team","{% url 'team' %}"]{% endif %}]'>
+  <div class="palette-box">
+    <input id="paletteInput" type="search" placeholder="Search chemicals, formulas, CAS numbers, shelves or pages" autocomplete="off" spellcheck="false"
+      role="combobox" aria-expanded="true" aria-controls="paletteList" aria-autocomplete="list">
+    <ul id="paletteList" role="listbox" aria-label="Results"></ul>
+    <p class="palette-foot"><span><kbd>↑</kbd> <kbd>↓</kbd> move</span><span><kbd>Enter</kbd> open</span><span><kbd>Esc</kbd> close</span></p>
+  </div>
+</dialog>
+{% endif %}
+
+<div class="toasts" role="status" aria-live="polite">
+{% for m in messages %}<div class="toast {{ m.tags }}">{{ m }}</div>{% endfor %}
+</div>
+
+<script src="{% static 'vendor/three.min.js' %}"></script>
+<script src="{% static 'js/molecules.js' %}"></script>
+<script src="{% static 'js/lab3d.js' %}"></script>
+<script src="{% static 'js/fx.js' %}"></script>
+<script src="{% static 'js/app.js' %}"></script>
+<script src="{% static 'js/wild.js' %}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

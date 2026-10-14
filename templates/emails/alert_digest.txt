@@ -1,0 +1,22 @@
+{% autoescape off %}{% if all_clear %}All clear: nothing in the lab is expired, expiring within 30 days, low on stock or stored next to something it reacts with.
+{% else %}Here is what needs attention in the lab today.
+{% if expired %}
+EXPIRED ({{ expired|length }})
+{% for d in disposal %}- {{ d.c.name }} ({{ d.c.formula }}), {{ d.c.quantity }}, {{ d.c.location|default:"no location" }}. {{ d.c.status_label }}.
+  Disposal: {{ d.how }}
+{% endfor %}{% endif %}{% if soon %}
+EXPIRING WITHIN 30 DAYS ({{ soon|length }})
+{% for c in soon %}- {{ c.name }} ({{ c.formula }}), {{ c.location|default:"no location" }}: {{ c.status_label|lower }}, on {{ c.expiry_date|date:"j M Y" }}
+{% endfor %}{% endif %}{% if low %}
+LOW ON STOCK ({{ low|length }})
+{% for c in low %}- {{ c.name }} ({{ c.formula }}): {{ c.quantity }} left, reorder below {{ c.min_stock.normalize }} {{ c.unit }}
+{% endfor %}Reorder list: {{ reorder }}
+{% endif %}{% if conflicts %}
+STORAGE CONFLICTS ({{ conflicts|length }})
+{% for x in conflicts %}- {{ x.location }}: {{ x.a.name }} with {{ x.b.name }}. {{ x.why }}
+{% endfor %}{% endif %}
+Open the dashboard: {{ dashboard }}
+{% endif %}
+--
+You get this because you turned on alert emails in S ChemLab. Turn them off under Settings: {{ settings_url }}
+{% endautoescape %}

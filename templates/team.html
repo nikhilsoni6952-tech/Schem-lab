@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block title %}Team{% endblock %}{% block page %}team{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div><h1>Team</h1><p>Everyone who can sign in to this lab. Admins manage the team, members change the inventory, viewers can only look.</p></div>
+  <button class="btn primary" type="button" data-toggle aria-controls="addMember" aria-expanded="{{ open_form|yesno:'true,false' }}"><svg class="ico"><use href="#i-plus"/></svg>Add person</button>
+</header>
+
+<section class="panel add-member" id="addMember" {% if not open_form %}hidden{% endif %}>
+  <div class="panel-head"><h2>Add a person</h2></div>
+  <form method="post" class="form-grid" novalidate>{% csrf_token %}
+    <div class="w2">{% include '_field.html' with f=form.first_name %}</div>
+    <div class="w2">{% include '_field.html' with f=form.last_name %}</div>
+    <div class="w2">{% include '_field.html' with f=form.role %}</div>
+    <div class="w2">{% include '_field.html' with f=form.username %}</div>
+    <div class="w4">{% include '_field.html' with f=form.email %}</div>
+    <div class="w3">{% include '_field.html' with f=form.password %}</div>
+    <div class="w3">{% include '_field.html' with f=form.password2 %}</div>
+    <div class="w6 actions"><button class="btn primary" type="submit">Add to team</button><span class="muted fine0">Give them their username and password in person or by a private message.</span></div>
+  </form>
+</section>
+
+<ul class="roles-key">{% for v, label in roles %}<li><span class="badge role-{{ v }}">{{ label }}</span>{% for k, h in role_help.items %}{% if k == v %}{{ h }}{% endif %}{% endfor %}</li>{% endfor %}</ul>
+
+<section class="panel people">
+  <ul class="person-list">
+  {% for p in people %}
+    <li class="person{% if not p.u.is_active %} off{% endif %}">
+      <span class="avatar">{{ p.initials }}</span>
+      <div class="who"><b>{{ p.name }}{% if p.u == user %} <small class="muted">(you)</small>{% endif %}</b>
+        <small>{{ p.u.username }}{% if p.u.email %} · {{ p.u.email }}{% endif %} · {% if p.u.last_login %}last signed in {{ p.u.last_login|timesince }} ago{% else %}never signed in{% endif %}</small></div>
+      <span class="badge role-{{ p.role }}">{{ p.role|capfirst }}</span>
+      {% if not p.u.is_active %}<span class="badge expired">Switched off</span>{% endif %}
+      {% if p.u != user %}
+      <details class="person-menu">
+        <summary class="btn small ghost">Manage</summary>
+        <div class="menu">
+          <form method="post" action="{% url 'team_member' p.u.pk %}">{% csrf_token %}<input type="hidden" name="action" value="role">
+            <label for="role{{ p.u.pk }}">Role</label>
+            <div class="inline"><select name="role" id="role{{ p.u.pk }}">{% for v, label in roles %}<option value="{{ v }}" {% if v == p.role %}selected{% endif %}>{{ label }}</option>{% endfor %}</select><button class="btn small" type="submit">Save</button></div>
+          </form>
+          <form method="post" action="{% url 'team_member' p.u.pk %}">{% csrf_token %}<input type="hidden" name="action" value="password">
+            <label for="pw{{ p.u.pk }}">New password</label>
+            <div class="inline"><input type="password" name="password" id="pw{{ p.u.pk }}" autocomplete="new-password" required><button class="btn small" type="submit">Set</button></div>
+          </form>
+          <form method="post" action="{% url 'team_member' p.u.pk %}" {% if p.u.is_active %}data-confirm="{{ p.name }} will no longer be able to sign in. Their activity history is kept."{% endif %}>{% csrf_token %}
+            <input type="hidden" name="action" value="{{ p.u.is_active|yesno:'deactivate,activate' }}">
+            <button class="btn small {{ p.u.is_active|yesno:'danger,' }}" type="submit">{{ p.u.is_active|yesno:'Switch off account,Switch account back on' }}</button>
+          </form>
+        </div>
+      </details>
+      {% endif %}
+    </li>
+  {% endfor %}
+  </ul>
+</section>
+{% endblock %}

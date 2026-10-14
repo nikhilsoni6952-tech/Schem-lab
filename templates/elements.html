@@ -1,0 +1,31 @@
+{% extends 'base.html' %}{% load static %}
+{% block title %}Elements{% endblock %}{% block page %}elements{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div><h1>Periodic table</h1><p>Select an element to see its electron shells in 3D. Filter by family, or search by name, symbol or atomic number.</p></div>
+  <div style="width:min(260px,100%)"><label for="elSearch">Find an element</label><input type="search" id="elSearch" placeholder="iron, Fe or 26" autocomplete="off"></div>
+</header>
+<div class="legend" id="legend">
+  <button class="chip plain" type="button" data-cat="" aria-pressed="true">All</button>
+  {% for k, v in categories.items %}<button class="chip c-{{ k }}" type="button" data-cat="{{ k }}" aria-pressed="false">{{ v }}</button>{% endfor %}
+</div>
+<div class="pt-layout">
+  <div class="pt-scroll"><div class="pt" id="pt">
+    {% for e in elements %}<button class="el c-{{ e.category }}" type="button" title="{{ e.name }}" style="grid-row:{{ e.row }};grid-column:{{ e.col }}" data-z="{{ e.z }}" aria-pressed="false" aria-label="{{ e.name }}, element {{ e.z }}"><span class="z">{{ e.z }}</span><span class="s">{{ e.symbol }}</span><span class="m">{{ e.name }}</span></button>{% endfor %}
+    <div class="gap"></div>
+  </div></div>
+  <aside class="panel el-card" id="card" aria-live="polite">
+    <div class="viewer" id="atom" tabindex="0" aria-label="3D Bohr model. Drag or use arrow keys to rotate."></div>
+    <div class="big"><span class="s" id="cSym"></span><div><h2 id="cName"></h2><span class="muted" id="cCat"></span></div></div>
+    <dl class="facts" style="margin-top:16px">
+      <div><dt>Atomic number</dt><dd id="cZ"></dd></div>
+      <div><dt>Atomic mass</dt><dd id="cMass"></dd></div>
+      <div><dt>Group and period</dt><dd id="cPos"></dd></div>
+      <div><dt>Electrons per shell</dt><dd id="cShells"></dd></div>
+    </dl>
+    <p style="margin-top:14px"><span class="muted">Configuration</span><br><span class="config" id="cConfig"></span></p>
+  </aside>
+</div>
+{{ elements|json_script:"elementData" }}
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/elements.js' %}"></script>{% endblock %}

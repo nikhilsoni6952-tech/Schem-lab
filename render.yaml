@@ -1,0 +1,61 @@
+# One-click hosting on Render (https://render.com): New → Blueprint → pick this repository.
+# It creates a PostgreSQL database and the web app, wires them together and serves it over HTTPS.
+databases:
+  - name: schemlab-db
+    plan: free
+    databaseName: schemlab
+    user: schemlab
+
+services:
+  - type: web
+    name: schemlab
+    runtime: python
+    plan: free
+    buildCommand: ./build.sh
+    startCommand: gunicorn schemlab.wsgi:application --workers 2 --timeout 60
+    healthCheckPath: /healthz/
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: schemlab-db
+          property: connectionString
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_DEBUG
+        value: "0"
+      - key: DJANGO_TIME_ZONE
+        value: Asia/Kolkata
+      # The assistant works offline without these. Fill in one option in the Render dashboard.
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_BASE_URL
+        sync: false
+      - key: AI_MODEL
+        sync: false
+      - key: AI_LABEL
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      # Sign in with Google (optional): see README
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_ALLOWED_DOMAINS
+        sync: false
+      # Email (optional): turns on "Forgot password?" and the alert digest. See README.
+      - key: EMAIL_HOST
+        sync: false
+      - key: EMAIL_PORT
+        sync: false
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: DEFAULT_FROM_EMAIL
+        sync: false
+      # A long random string; an outside scheduler calls /alerts/send/?key=<it> to send the alert digest
+      - key: ALERTS_CRON_KEY
+        generateValue: true

@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}Reorder list{% endblock %}{% block page %}reorder{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div><h1>Reorder list</h1><p>{{ today|date:'j F Y' }}. Suggested amounts cover about 90 days of recent use plus the reorder level, rounded up to whole packs when a pack size is set.</p></div>
+  <div class="actions no-print">
+    <a class="btn" href="{% url 'reorder_csv' %}">Download CSV</a>
+    <button class="btn primary" type="button" onclick="print()">Print</button>
+  </div>
+</header>
+{% if reorder %}
+<div class="table-wrap reorder">
+  <table>
+    <thead><tr><th class="sel"><span class="sr">Ordered</span></th><th>Chemical</th><th>CAS</th><th>Supplier</th><th>In stock</th><th>Order</th><th class="num">Cost</th><th>Why</th></tr></thead>
+    <tbody>
+    {% for r in reorder %}<tr><td class="sel"><input type="checkbox" aria-label="Mark {{ r.c.name }} as ordered"></td><td><a class="name" href="{{ r.c.get_absolute_url }}">{{ r.c.name }}</a><small>{{ r.c.pretty_formula }}{% if r.c.location %}, {{ r.c.location }}{% endif %}</small></td><td class="num">{{ r.c.cas_number|default:"–" }}</td><td>{% if r.c.product_url %}<a href="{{ r.c.product_url }}" target="_blank" rel="noopener noreferrer">{{ r.c.buy_from }}</a>{% else %}{{ r.c.buy_from }}{% endif %}{% if r.c.catalog_number %}<small class="mono">{{ r.c.catalog_number }}</small>{% endif %}</td><td class="num">{{ r.c.quantity }}</td><td class="num"><b>{{ r.suggest }} {{ r.c.unit }}</b>{% if r.packs %}<small>{{ r.packs }} × {{ r.c.pack_size.normalize }} {{ r.c.unit }}</small>{% endif %}</td><td class="num">{% if r.cost is not None %}{{ currency }}{{ r.cost|floatformat:"-2g" }}{% else %}<span class="muted">–</span>{% endif %}</td><td>{{ r.reason }}</td></tr>{% endfor %}
+    </tbody>
+    {% if total is not None %}<tfoot><tr><td></td><td colspan="4"><b>Estimated total</b>{% if unpriced %}<small>{{ unpriced }} item{{ unpriced|pluralize }} without a price {{ unpriced|pluralize:"isn't,aren't" }} included. Add pack size and price under Edit.</small>{% endif %}</td><td></td><td class="num"><b>{{ currency }}{{ total|floatformat:"-2g" }}</b></td><td></td></tr></tfoot>{% endif %}
+  </table>
+</div>
+{% else %}<section class="panel"><p class="empty">Nothing needs ordering right now. Chemicals appear here when they drop to their reorder level.</p></section>{% endif %}
+{% endblock %}

@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+{% block title %}Offline{% endblock %}{% block page %}offline{% endblock %}
+{% block content %}
+<header class="page-head"><div><h1>You're offline</h1>
+<p>S ChemLab can't reach its server right now. Pages you have already opened still work from this device; new changes to the inventory need a connection.</p></div></header>
+<section class="panel"><p>Check that the server is running (<code>python manage.py runserver</code>) and that you are on the same network, then try again.</p>
+<p><button class="btn primary" type="button" onclick="location.reload()">Try again</button></p></section>
+{% endblock %}

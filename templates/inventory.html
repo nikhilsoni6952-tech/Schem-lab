@@ -1,0 +1,114 @@
+{% extends 'base.html' %}{% load static %}
+{% block title %}Inventory{% endblock %}{% block page %}inventory{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div><h1>Inventory</h1><p>Every chemical in the lab. Search by name, formula, maker, CAS number or shelf.</p></div>
+  <div class="actions">
+    {% if total %}<button class="btn" type="button" id="scanStart">Stock-take game</button>
+    <a class="btn" href="{% url 'export_csv' %}">Export CSV</a>
+    <a class="btn" href="{% url 'labels' %}"><svg class="ico"><use href="#i-print"/></svg>Labels</a>{% endif %}
+    {% if can_edit %}<form method="post" action="{% url 'import_csv' %}" enctype="multipart/form-data" class="import-form">{% csrf_token %}
+      <label class="btn" title="Add or update chemicals from a CSV in the same layout as the export"><svg class="ico"><use href="#i-upload"/></svg>Import CSV<input type="file" name="file" accept=".csv,text/csv" class="sr" onchange="this.form.submit()"></label></form>
+    <a class="btn primary" href="{% url 'add_chemical' %}"><svg class="ico"><use href="#i-plus"/></svg>Add chemical</a>{% endif %}
+  </div>
+</header>
+
+{% if inv.bubbles %}
+<section class="inv-bubbles viewer" id="invBubbles" aria-label="Categories as bubbles sized by how many chemicals each holds. Click a bubble to show only that category." data-active="{{ category }}">
+  <noscript>{% for b in inv.bubbles %}{{ b.label }} {{ b.n }} {% endfor %}</noscript>
+</section>
+{% endif %}
+
+<div class="scan" id="scan" hidden aria-live="polite">
+  <div class="scan-top"><b>Stock-take</b><span id="scanClock">60</span><span id="scanScore">0 found</span><button class="btn small ghost" type="button" id="scanStop">Stop</button></div>
+  <p class="scan-clue" id="scanClue"></p>
+</div>
+
+<form method="get" class="filters" id="filters">
+  <div><label for="q">Search</label><input type="search" id="q" name="q" value="{{ q }}" placeholder="ethanol, HCl, Merck, A2" autocomplete="off"></div>
+  <div><label for="category">Category</label><select id="category" name="category"><option value="">All categories</option>{% for v, l in categories %}<option value="{{ v }}"{% if v == category %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+  <div><label for="status">Status</label><select id="status" name="status">
+    <option value="">Any status</option>
+    <option value="expired"{% if status == 'expired' %} selected{% endif %}>Expired</option>
+    <option value="soon"{% if status == 'soon' %} selected{% endif %}>Expiring within 30 days</option>
+    <option value="watch"{% if status == 'watch' %} selected{% endif %}>Expiring within 90 days</option>
+    <option value="ok"{% if status == 'ok' %} selected{% endif %}>In date</option>
+    <option value="low"{% if status == 'low' %} selected{% endif %}>Low stock</option></select></div>
+  <div><label for="sort">Sort by</label><select id="sort" name="sort">
+    <option value="expiry"{% if sort == 'expiry' %} selected{% endif %}>Expiry, soonest first</option>
+    <option value="name"{% if sort == 'name' %} selected{% endif %}>Name</option>
+    <option value="amount"{% if sort == 'amount' %} selected{% endif %}>Amount, lowest first</option>
+    <option value="location"{% if sort == 'location' %} selected{% endif %}>Location</option>
+    <option value="newest"{% if sort == 'newest' %} selected{% endif %}>Newest</option></select></div>
+  <div class="actions"><button class="btn" type="submit">Apply</button>{% if filtered %}<a class="btn ghost" href="{% url 'inventory' %}">Clear</a>{% endif %}</div>
+</form>
+
+<div class="inv-bar">
+  <p class="count-line" id="countLine">Showing {{ items|length }} of {{ total }} chemical{{ total|pluralize }}</p>
+  {% if items %}<div class="seg" role="group" aria-label="View" id="viewSeg"><button type="button" data-view="table" aria-pressed="true">Table</button><button type="button" data-view="wall" aria-pressed="false">3D shelves</button></div>{% endif %}
+</div>
+
+<div class="viewer inv-wall" id="invWall" tabindex="0" hidden aria-label="The chemicals in this list as bottles on shelves, in the table's order. Drag to look around; click a bottle to open it."><div class="bottle-tip" id="wallTip" hidden></div></div>
+
+<div class="table-wrap" id="tableWrap">
+<table id="invTable">
+<thead><tr>
+  <th class="sel"><input type="checkbox" id="selAll" aria-label="Select every chemical shown"></th>
+  <th><button type="button" class="sort" data-sort="name">Chemical</button></th><th>Formula</th>
+  <th><button type="button" class="sort" data-sort="amount">Amount</button></th>
+  <th><button type="button" class="sort" data-sort="location">Location</button></th><th>Hazard</th>
+  <th><button type="button" class="sort" data-sort="days">Expiry</button></th><th>Status</th><th><span class="sr">Actions</span></th>
+</tr></thead>
+<tbody id="rows">
+{% for c in items %}
+<tr data-row data-pk="{{ c.pk }}" data-text="{{ c.name|lower }} {{ c.formula|lower }} {{ c.manufacturer|lower }} {{ c.location|lower }} {{ c.cas_number }}" class="st-{{ c.status }}{% if c.days_left >= 0 and c.days_left <= 7 %} urgent{% endif %}" style="--i:{{ forloop.counter0 }}">
+  <td class="sel"><input type="checkbox" class="pick" value="{{ c.pk }}" aria-label="Select {{ c.name }}"></td>
+  <td class="first"><i class="strip" aria-hidden="true"></i><a class="name" href="{{ c.get_absolute_url }}">{{ c.name }}</a><small>{{ c.manufacturer }}, {{ c.get_category_display|lower }}</small></td>
+  <td class="formula">{{ c.pretty_formula }}</td>
+  <td class="num amount-cell"><button type="button" class="amount" data-pk="{{ c.pk }}" aria-label="{{ c.quantity }} of {{ c.name }}. Change the amount">
+    <svg class="gauge" viewBox="0 0 14 30" aria-hidden="true"><rect x="1" y="1" width="12" height="28" rx="6" class="g-glass"/><rect x="2.5" y="2.5" width="9" height="25" rx="4.5" class="g-fill"/><line x1="0" x2="14" y1="21" y2="21" class="g-mark"/></svg>
+    <span class="qty">{{ c.quantity }}</span></button>{% if c.low_stock %}<small><span class="badge low">Low stock</span></small>{% endif %}</td>
+  <td>{{ c.location|default:"—" }}</td>
+  <td><span class="haz-set" title="{{ c.hazards_display }}">{% include '_hazard.html' with h=c.hazard label=c.get_hazard_display %}{% for h, label in c.hazard_list %}{% if h != c.hazard %}{% include '_hazard.html' with h=h label='' %}{% endif %}{% endfor %}</span></td>
+  <td class="num">{{ c.expiry_date|date:"d M Y" }}</td>
+  <td><span class="badge {{ c.status }}">{{ c.status_label }}</span><span class="life" aria-hidden="true"><i></i></span></td>
+  <td class="row-actions needs-edit"><a href="{% url 'edit_chemical' c.pk %}">Edit</a><a href="{% url 'delete_chemical' c.pk %}">Remove</a></td>
+</tr>
+{% empty %}
+<tr><td colspan="9" class="empty" style="padding:28px 16px">{% if filtered %}No chemicals match these filters. <a href="{% url 'inventory' %}">Clear filters</a>{% else %}No chemicals yet. <a href="{% url 'add_chemical' %}">Add the first one</a>.{% endif %}</td></tr>
+{% endfor %}
+<tr id="noMatch" hidden><td colspan="9" class="empty" style="padding:28px 16px">No chemicals on this page match what you typed. Press Apply to search the whole inventory.</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="bulk" id="bulkBar" hidden role="region" aria-label="Selected chemicals">
+  <b id="bulkCount"></b>
+  <button class="btn small" type="button" id="bulkCompare" hidden>Compare the two</button>
+  <button class="btn small needs-edit" type="button" id="bulkMove">Move to…</button>
+  <button class="btn small" type="button" id="bulkExport">Export</button>
+  <button class="btn small" type="button" id="bulkLabels">Labels</button>
+  <button class="btn small danger needs-edit" type="button" id="bulkDispose">Dispose</button>
+  <button class="btn small ghost" type="button" id="bulkClear">Clear</button>
+  <div class="bulk-move" id="bulkMoveBox" hidden>
+    <label for="bulkWhere">Move to</label>
+    <input id="bulkWhere" list="bulkSpots" placeholder="Base cabinet B1" autocomplete="off" maxlength="60">
+    <datalist id="bulkSpots"></datalist>
+    <p class="bulk-check" id="bulkCheck" aria-live="polite"></p>
+    <button class="btn small primary" type="button" id="bulkMoveGo" disabled>Move</button>
+  </div>
+</div>
+
+<div class="row-preview" id="rowPreview" hidden aria-hidden="true"><div class="viewer rp-stage" id="rpStage"></div><div class="rp-text" id="rpText"></div></div>
+<div class="stock-pop" id="stockPop" hidden role="dialog" aria-label="Change the amount"></div>
+
+<dialog class="compare" id="compare" aria-label="Compare two chemicals">
+  <div class="cmp-head"><h2>Side by side</h2><button class="btn small ghost" type="button" id="cmpClose">Close</button></div>
+  <div class="cmp-grid" id="cmpGrid"></div>
+  <div class="cmp-verdict" id="cmpVerdict"></div>
+</dialog>
+
+<div id="inv" data-stock="{% url 'stock_api' 0 %}" data-bulk="{% url 'bulk_api' %}" data-export="{% url 'export_csv' %}" data-labels="{% url 'labels' %}" data-react="{% url 'reactor_api' %}" hidden></div>
+{{ inv|json_script:"invData" }}
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/inventory.js' %}"></script>{% endblock %}

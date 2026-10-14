@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block title %}Settings{% endblock %}{% block page %}settings{% endblock %}
+{% block content %}
+<header class="page-head"><div><h1>Settings</h1><p>Your profile, how the app looks on this device, and your password.</p></div></header>
+<div class="settings">
+  <section class="panel">
+    <div class="panel-head"><h2>Appearance</h2><span class="muted fine0">Saved on this device</span></div>
+    <div class="pref">
+      <div><b>Theme</b><small>System follows your device's light or dark setting.</small></div>
+      <div class="seg" role="radiogroup" aria-label="Theme" data-pref="theme">
+        <button type="button" role="radio" data-v="system">System</button><button type="button" role="radio" data-v="light"><svg class="ico"><use href="#i-sun"/></svg>Light</button><button type="button" role="radio" data-v="dark"><svg class="ico"><use href="#i-moon"/></svg>Dark</button>
+      </div>
+    </div>
+    <div class="pref">
+      <div><b>Motion and effects</b><small>Standard keeps pages calm and saves the big effects for the Reactor. Full turns them on everywhere. Wild goes all the way: aurora, neon, particle cursor, shockwaves and a couple of secrets.</small></div>
+      <div class="seg" role="radiogroup" aria-label="Motion and effects" data-pref="fx">
+        <button type="button" role="radio" data-v="minimal">Minimal</button><button type="button" role="radio" data-v="standard">Standard</button><button type="button" role="radio" data-v="full">Full</button><button type="button" role="radio" data-v="wild"><svg class="ico"><use href="#i-bolt"/></svg>Wild</button>
+      </div>
+    </div>
+    <div class="pref">
+      <div><b>Sound effects</b><small>Short sounds in the Reactor and games.</small></div>
+      <button class="switch" type="button" role="switch" aria-checked="false" id="soundSwitch"><i></i><span class="sr">Sound effects</span></button>
+    </div>
+    <div class="pref install-row">
+      <div><b>Install the app</b><small>Opens in its own window and from your home screen, and keeps working offline for pages you've opened.</small></div>
+      <button class="btn small install-btn" type="button" data-install><svg class="ico"><use href="#i-download"/></svg>Install</button>
+      <span class="muted installed-note">On iPhone: Share, then Add to Home Screen.</span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>Profile</h2><span class="badge role-{{ role }}">{{ role_label }}</span></div>
+    <p class="muted fine0">{{ role_help }}{% if google %} Sign in with Google uses the email below{% if not user.email %}; add one to use it{% endif %}.{% endif %}</p>
+    <form method="post" class="form-grid" novalidate>{% csrf_token %}
+      <div class="w3">{% include '_field.html' with f=form.first_name %}</div>
+      <div class="w3">{% include '_field.html' with f=form.last_name %}</div>
+      <div class="w6">{% include '_field.html' with f=form.email %}</div>
+      <div class="w6 actions"><button class="btn primary" type="submit">Save profile</button><a class="btn" href="{% url 'password_change' %}"><svg class="ico"><use href="#i-lock"/></svg>Change password</a></div>
+    </form>
+    <dl class="facts">
+      <div><dt>Username</dt><dd>{{ user.username }}</dd></div>
+      <div><dt>Member since</dt><dd>{{ user.date_joined|date:"j M Y" }}</dd></div>
+      <div><dt>Last sign-in</dt><dd>{{ user.last_login|date:"j M Y, H:i"|default:"—" }}</dd></div>
+    </dl>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>Alert emails</h2>{% if alerts_on %}<span class="badge ok">On</span>{% endif %}</div>
+    <div class="pref">
+      <div><b>Email me what needs attention</b><small>Expired and expiring chemicals, low stock and storage conflicts, in one email on the lab's schedule. Nothing is sent when all is well.{% if not user.email %} Add your email under Profile to receive it.{% endif %}{% if not email_ready %} Email isn't set up on this server yet, so ask your admin.{% endif %}</small></div>
+      <form method="post" action="{% url 'account_alerts' %}">{% csrf_token %}<input type="hidden" name="on" value="{{ alerts_on|yesno:'0,1' }}">
+        <button class="switch" type="submit" role="switch" aria-checked="{{ alerts_on|yesno:'true,false' }}"><i></i><span class="sr">Alert emails</span></button></form>
+    </div>
+    {% if user.email and email_ready %}<form method="post" action="{% url 'account_alerts' %}">{% csrf_token %}<button class="btn small" name="action" value="test" type="submit">Send me one now</button></form>{% endif %}
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>Session</h2></div>
+    <p class="muted fine0">You stay signed in on this device for two weeks.</p>
+    <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn" type="submit"><svg class="ico"><use href="#i-logout"/></svg>Sign out</button></form>
+  </section>
+</div>
+{% endblock %}
